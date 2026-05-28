@@ -117,6 +117,20 @@ struct GameLibraryView: View {
                 )
             }
             Divider()
+            if !LegendaryService.isInstalled {
+                Button("Install Legendary (Epic CLI)") {
+                    installLegendary()
+                }
+            } else if !LegendaryService.isAuthenticated {
+                Button("Login to Epic (Legendary)") {
+                    LegendaryService.openAuthInTerminal()
+                }
+            } else {
+                Button("Sync Epic Library (Legendary)") {
+                    importAndScanLegendary()
+                }
+            }
+            Divider()
             Button("Scan for Games") {
                 scanGames()
             }
@@ -177,6 +191,7 @@ struct GameLibraryView: View {
             Task {
                 do {
                     try await EpicService.installEpic(into: bottle, wine: wine, job: job)
+                    ensureEpicLauncherEntry()
                     scanGames()
                 } catch {
                     print("[Epic] install failed: \(error)")
@@ -184,6 +199,41 @@ struct GameLibraryView: View {
                 store.removeInstallerJob(job)
             }
         }
+    }
+
+    private func ensureEpicLauncherEntry() {
+        guard let wine = store.wineEnv,
+              let epicExe = EpicService.epicExePath(in: bottle) else { return }
+        let existing = store.games(for: bottle)
+        guard !existing.contains(where: { $0.name == "Epic Games Launcher" }) else { return }
+        let relPath = epicExe.path
+            .replacingOccurrences(of: bottle.driveCPath.path + "/", with: "")
+        let launcher = Game(
+            name: "Epic Games Launcher",
+            bottleID: bottle.id,
+            executablePath: relPath,
+            source: .epic,
+            epicAppName: nil
+        )
+        store.addGame(launcher)
+    }
+
+    private func installLegendary() {
+        let job = InstallerJob(name: "Legendary", bottle: bottle)
+        store.addInstallerJob(job)
+        Task {
+            do {
+                try await LegendaryService.install(job: job)
+            } catch {
+                print("[Legendary] install failed: \(error)")
+            }
+            store.removeInstallerJob(job)
+        }
+    }
+
+    private func importAndScanLegendary() {
+        LegendaryService.importGames(from: bottle)
+        scanGames()
     }
 
     private func scanGames() {

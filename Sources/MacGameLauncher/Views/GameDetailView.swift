@@ -168,16 +168,25 @@ struct GameDetailView: View {
     private func launchGame() {
         guard let wine = store.wineEnv else { return }
         isLaunching = true
-        let exeURL = game.resolvedExecutablePath(in: bottle)
-        let workDir = game.resolvedWorkingDirectory(in: bottle)
         do {
-            let process = try WineService.launch(
-                executable: exeURL,
-                args: game.executableArgs,
-                workingDirectory: workDir,
-                bottle: bottle,
-                wine: wine
-            )
+            let process: Process
+            if game.source == .epic, let appName = game.epicAppName {
+                if LegendaryService.isInstalled && LegendaryService.isAuthenticated {
+                    process = try LegendaryService.launchGame(appName: appName, bottle: bottle, wine: wine)
+                } else {
+                    process = try EpicService.launchEpicGame(appName: appName, bottle: bottle, wine: wine)
+                }
+            } else {
+                let exeURL = game.resolvedExecutablePath(in: bottle)
+                let workDir = game.resolvedWorkingDirectory(in: bottle)
+                process = try WineService.launch(
+                    executable: exeURL,
+                    args: game.executableArgs,
+                    workingDirectory: workDir,
+                    bottle: bottle,
+                    wine: wine
+                )
+            }
             Task { @MainActor in
                 monitor.register(process: process, for: game)
                 var updated = game

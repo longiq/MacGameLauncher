@@ -150,6 +150,71 @@ There are no automated tests. Manual test checklist:
 
 ---
 
+## Epic Games Launcher — Known Limitations (GPTK Wine)
+
+### CEF Black Screen (unresolved)
+
+Epic Games Launcher uses Chromium Embedded Framework (CEF) v90 with forced GPU acceleration. GPTK Wine lacks the proprietary `winemetal.dll` bridge that CrossOver ships — this means the CEF GPU process cannot initialize ANGLE/D3D11 and crashes three times, causing the renderer to time out and the launcher UI to remain a black window.
+
+**Flags that do NOT help** (Epic overrides CEF GPU settings internally):
+- `--disable-gpu`, `--use-gl=swiftshader`, `--use-angle=gl`, `--in-process-gpu`
+
+**Workaround**: Use `legendary` CLI client to launch Epic games directly — see Legendary CLI Integration below.
+
+### msvproc.dll Stub
+
+`DXVAVDA fatal error: could not LoadLibrary: msvproc.dll: Module not found (0x7E)` crashes the CEF GPU process on startup. Fixed by placing a copy of `lz32.dll` as `drive_c/windows/system32/msvproc.dll` — this stub satisfies the LoadLibrary call and prevents the immediate crash (though GPU process still fails at command buffer creation due to missing winemetal).
+
+### Epic Online Services (EOS)
+
+EOS "needs to install" error fixed by:
+1. Copying EOS files from a CrossOver bottle's `drive_c/Program Files (x86)/Epic Games/` into the GPTK bottle
+2. Importing ~224 EOS registry blocks from CrossOver's `system.reg` into the GPTK bottle's `system.reg`
+
+---
+
+## Legendary CLI Integration
+
+[legendary](https://github.com/legendary-gl/legendary) is an open-source Epic Games Store client that can install, update, and launch Epic games without the Epic Games Launcher UI.
+
+### Binary location
+`~/Library/Application Support/MacGameLauncher/Tools/legendary`
+
+Managed by `LegendaryService.swift`. Stored separately from legendary's own config (in `~/.config/legendary/`) so uninstalling MacGameLauncher's Tools/ directory does not affect user's legendary auth/library data.
+
+### Uninstall behavior
+- `LegendaryService.uninstall()` removes only `MacGameLauncher/Tools/` (the binary)
+- legendary config (`~/.config/legendary/`) is **not** deleted — user retains their login and library data
+
+### Game launch routing
+When legendary is installed AND authenticated, all Epic games launch via:
+```
+legendary launch <appName> --wine <wine64> --wine-prefix <bottle.path> --no-wine-setup --skip-version-check
+```
+Otherwise falls back to `EpicService.launchEpicGame()` (via Wine virtual desktop).
+
+### Auth flow
+`LegendaryService.openAuthInTerminal()` opens Terminal and runs `legendary auth`. User follows the URL → copies SID → pastes into Terminal. After auth, `isAuthenticated` returns true (checks `~/.config/legendary/user.json` for `access_token`).
+
+---
+
+## Wine Virtual Desktop (Epic)
+
+Epic's bootstrap launcher calls `LaunchNonElevatedProcess` when handing off to the full UI, which requires an active Windows shell. Without a virtual desktop, this silently fails.
+
+`EpicService.launchWithDesktop()` runs:
+```
+wine64 explorer /desktop=epic,1920x1080 EpicGamesLauncher.exe ...
+```
+
+`EpicService.configureManagedDesktop()` writes registry keys:
+- `HKCU\Software\Wine\Explorer\Desktop = Default`
+- `HKCU\Software\Wine\Explorer\Desktops\Default = 1920x1080`
+
+This ensures child processes spawned by EpicGamesUpdater (self-updater restarts) also run inside the virtual desktop.
+
+---
+
 ## Files NOT to modify without care
 
 | File | Reason |
@@ -159,3 +224,4 @@ There are no automated tests. Manual test checklist:
 | `WineEnvironment.swift` | Detection order matters for M4 (Whisky must be first) |
 | `Bottle.launchEnvironment()` | D3DMetal env vars are required for M4 graphics |
 | `main.swift` | Must call `.main()` at top level — do not use `@main` on the App struct |
+| `LegendaryService.uninstall()` | Must only remove Tools/ — never touch `~/.config/legendary/` |

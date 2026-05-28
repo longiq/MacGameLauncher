@@ -70,6 +70,8 @@ struct GameCardView: View {
             Image(nsImage: img)
                 .resizable()
                 .scaledToFill()
+        } else if game.source == .epic {
+            epicArtwork
         } else {
             Rectangle()
                 .fill(LinearGradient(
@@ -83,6 +85,28 @@ struct GameCardView: View {
                         .foregroundStyle(.white.opacity(0.4))
                 }
         }
+    }
+
+    @ViewBuilder
+    private var epicArtwork: some View {
+        Rectangle()
+            .fill(LinearGradient(
+                colors: [.black, Color(red: 0.1, green: 0.05, blue: 0.2)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ))
+            .overlay {
+                VStack(spacing: 8) {
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 32))
+                        .foregroundStyle(.white.opacity(0.7))
+                    Text("EPIC GAMES")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .tracking(2)
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+            }
     }
 
     @ViewBuilder
@@ -139,18 +163,25 @@ struct GameCardView: View {
     private func launchGame() {
         guard let wine = store.wineEnv,
               let bottle = store.bottle(for: game) else { return }
-
-        let exeURL = game.resolvedExecutablePath(in: bottle)
-        let workDir = game.resolvedWorkingDirectory(in: bottle)
-
         do {
-            let process = try WineService.launch(
-                executable: exeURL,
-                args: game.executableArgs,
-                workingDirectory: workDir,
-                bottle: bottle,
-                wine: wine
-            )
+            let process: Process
+            if game.source == .epic, let appName = game.epicAppName {
+                if LegendaryService.isInstalled && LegendaryService.isAuthenticated {
+                    process = try LegendaryService.launchGame(appName: appName, bottle: bottle, wine: wine)
+                } else {
+                    process = try EpicService.launchEpicGame(appName: appName, bottle: bottle, wine: wine)
+                }
+            } else {
+                let exeURL = game.resolvedExecutablePath(in: bottle)
+                let workDir = game.resolvedWorkingDirectory(in: bottle)
+                process = try WineService.launch(
+                    executable: exeURL,
+                    args: game.executableArgs,
+                    workingDirectory: workDir,
+                    bottle: bottle,
+                    wine: wine
+                )
+            }
             Task { @MainActor in
                 monitor.register(process: process, for: game)
                 var updated = game
