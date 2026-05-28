@@ -178,10 +178,12 @@ struct GameDetailView: View {
                 bottle: bottle,
                 wine: wine
             )
-            monitor.register(process: process, for: game)
-            var updated = game
-            updated.lastPlayed = Date()
-            store.updateGame(updated)
+            Task { @MainActor in
+                monitor.register(process: process, for: game)
+                var updated = game
+                updated.lastPlayed = Date()
+                store.updateGame(updated)
+            }
         } catch {
             print("[GameDetail] launch error: \(error.localizedDescription)")
         }
