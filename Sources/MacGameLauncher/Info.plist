@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>MacGameLauncher</string>
+    <key>CFBundleDisplayName</key>
+    <string>MacGameLauncher</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.user.MacGameLauncher</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>15.0</string>
+    <key>NSHumanReadableCopyright</key>
+    <string>Personal Use</string>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.games</string>
+
+    <!-- Allow outbound network for Steam CDN artwork downloads -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
+    </dict>
+
+    <!-- Usage descriptions (needed even without sandbox for some APIs) -->
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>Required to access game executables and Wine bottles on the Desktop.</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>Used for storing downloaded game installers.</string>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>Used to locate and launch game executables.</string>
+
+    <!-- NOT sandboxed — required to spawn Wine child processes -->
+    <!-- Remove or set to false; personal-use app does not use App Sandbox -->
+    <key>com.apple.security.app-sandbox</key>
+    <false/>
+</dict>
+</plist>
